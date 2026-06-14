@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Météo Douala | Weather Douala</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --bg-day: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            --bg-night: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            --bg-rain: linear-gradient(135deg, #636e72 0%, #2d3436 100%);
+            --card-bg: rgba(255, 255, 255, 0.15);
+            --card-border: rgba(255, 255, 255, 0.2);
+            --text-light: #ffffff;
+            --text-dark: #2d3436;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            background: var(--bg-day);
+            background-attachment: fixed;
+            color: var(--text-light);
+            transition: background 0.5s ease;
+        }
+
+        body.night {
+            background: var(--bg-night);
+        }
+
+        body.rainy {
+            background: var(--bg-rain);
+        }
+
+        /* Rain effect */
+        .rain-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+            display: none;
+        }
+
+        body.rainy .rain-container {
+            display: block;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.6);
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh); }
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 5%;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .logo svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .lang-switcher {
+            display: flex;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px;
+            border-radius: 25px;
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .lang-btn.active {
+            background: white;
+            color: var(--primary);
+        }
+
+        .lang-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 5%;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Current Weather */
+        .current-weather {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+        }
+
+        .city-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .date-time {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .weather-icon-main {
+            font-size: 6rem;
+            margin: 20px 0;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+
+        .temperature {
+            font-size: 5rem;
+            font-weight: 300;
+            line-height: 1;
+        }
+
+        .temperature sup {
+            font-size: 2rem;
+            font-weight: 400;
+        }
+
+        .weather-desc {
+            font-size: 1.3rem;
+            font-weight: 500;
+            margin-top: 10px;
+            text-transform: capitalize;
+        }
+
+        .feels-like {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        /* Weather Details Grid */
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .detail-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .detail-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .detail-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        /* Hourly Forecast */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 30px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hourly-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        .hourly-scroll {
+            display: flex;
+            gap: 20px;
+            min-width: max-content;
+        }
+
+        .hour-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 15px 10px;
+            min-width: 80px;
+            border-radius: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .hour-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .hour-time {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .hour-icon {
+            font-size: 2rem;
+        }
+
+        .hour-temp {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .hour-rain {
+            font-size: 0.75rem;
+            color: #74b9ff;
+        }
+
+        /* Daily Forecast */
+        .daily-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .daily-item {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.3s ease;
+            border-radius: 12px;
+        }
+
+        .daily-item:last-child {
+            border-bottom: none;
+        }
+
+        .daily-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .daily-day {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .daily-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .daily-icon {
+            font-size: 2.5rem;
+        }
+
+        .daily-desc {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .daily-temps {
+            text-align: right;
+        }
+
+        .daily-max {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .daily-min {
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error */
+        .error-container {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .error-text {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        .retry-btn {
+            padding: 12px 30px;
+            border: none;
+            background: white;
+            color: var(--primary);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .retry-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            margin-top: 40px;
+        }
+
+        .footer p {
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: #74b9ff;
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .city-name { font-size: 1.8rem; }
+            .temperature { font-size: 3.5rem; }
+            .temperature sup { font-size: 1.5rem; }
+            .weather-icon-main { font-size: 4rem; }
+            .details-grid { grid-template-columns: repeat(2, 1fr); }
+            .daily-item {
+                grid-template-columns: 1fr auto auto;
+                gap: 10px;
+            }
+            .daily-center { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .header { padding: 15px 3%; }
+            .logo { font-size: 1.2rem; }
+            .container { padding: 20px 3%; }
+            .details-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .detail-card { padding: 15px 10px; }
+        }
+
+        /* Fade in animation */
+        .fade-in {
+            animation: fadeIn 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="rain-container" id="rainContainer"></div>
+
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 19c0-1.7-1.3-3-3-3c-1.1 0-2.1.6-2.6 1.5c-.5-.9-1.5-1.5-2.6-1.5c-1.7 0-3 1.3-3 3"/>
+                <path d="M17.5 19H6.5"/>
+                <path d="M12 2v2"/>
+                <path d="M12 8v2"/>
+                <path d="M4.2 4.2l1.4 1.4"/>
+                <path d="M18.4 5.6l1.4-1.4"/>
+                <path d="M2 12h2"/>
+                <path d="M20 12h2"/>
+                <path d="M4.2 19.8l1.4-1.4"/>
+                <path d="M18.4 18.4l1.4 1.4"/>
+            </svg>
+            <span data-i18n="appName">Météo Douala</span>
+        </div>
+        <div class="lang-switcher">
+            <button class="lang-btn active" onclick="setLang('fr')" id="btnFr">FR</button>
+            <button class="lang-btn" onclick="setLang('en')" id="btnEn">EN</button>
+        </div>
+    </header>
+
+    <main class="container" id="mainContent">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p data-i18n="loading">Chargement des données météo...</p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p data-i18n="footer">Données fournies par <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> | Douala, Cameroun</p>
+    </footer>
+
+    <script>
+        // ==================== TRANSLATIONS ====================
+        const translations = {
+            fr: {
+                appName: "Météo Douala",
+                loading: "Chargement des données météo...",
+                error: "Impossible de charger les données météo",
+                retry: "Réessayer",
+                feelsLike: "Ressenti",
+                humidity: "Humidité",
+                wind: "Vent",
+                pressure: "Pression",
+                uv: "Indice UV",
+                visibility: "Visibilité",
+                precipitation: "Précipitations",
+                hourlyForecast: "Prévisions horaires",
+                dailyForecast: "Prévisions sur 7 jours",
+                today: "Aujourd'hui",
+                footer: "Données fournies par <a href='https://open-meteo.com' target='_blank'>Open-Meteo</a> | Douala, Cameroun",
+                days: ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"],
+                fullDays: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
+                weatherCodes: {
+                    0: "Ciel dégagé", 1: "Principalement dégagé", 2: "Partiellement nuageux", 3: "Couvert",
+                    45: "Brouillard", 48: "Brouillard givrant",
+                    51: "Bruine légère", 53: "Bruine modérée", 55: "Bruine dense",
+                    56: "Bruine verglaçante légère", 57: "Bruine verglaçante dense",
+                    61: "Pluie légère", 63: "Pluie modérée", 65: "Pluie forte",
+                    66: "Pluie verglaçante légère", 67: "Pluie verglaçante forte",
+                    71: "Neige légère", 73: "Neige modérée", 75: "Neige forte",
+                    77: "Grains de neige",
+                    80: "Averses de pluie légères", 81: "Averses de pluie modérées", 82: "Averses de pluie violentes",
+                    85: "Averses de neige légères", 86: "Averses de neige fortes",
+                    95: "Orage", 96: "Orage avec grêle légère", 99: "Orage avec grêle forte"
+                }
+            },
+            en: {
+                appName: "Douala Weather",
+                loading: "Loading weather data...",
+                error: "Unable to load weather data",
+                retry: "Try Again",
+                feelsLike: "Feels Like",
+                humidity: "Humidity",
+                wind: "Wind",
+                pressure: "Pressure",
+                uv: "UV Index",
+                visibility: "Visibility",
+                precipitation: "Precipitation",
+                hourlyForecast: "Hourly Forecast",
+                dailyForecast: "7-Day Forecast",
+                today: "Today",
+                footer: "Data provided by <a href='https://open-meteo.com' target='_blank'>Open-Meteo</a> | Douala, Cameroon",
+                days: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                fullDays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+                weatherCodes: {
+                    0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
+                    45: "Fog", 48: "Depositing Rime Fog",
+                    51: "Light Drizzle", 53: "Moderate Drizzle", 55: "Dense Drizzle",
+                    56: "Light Freezing Drizzle", 57: "Dense Freezing Drizzle",
+                    61: "Slight Rain", 63: "Moderate Rain", 65: "Heavy Rain",
+                    66: "Light Freezing Rain", 67: "Heavy Freezing Rain",
+                    71: "Slight Snow", 73: "Moderate Snow", 75: "Heavy Snow",
+                    77: "Snow Grains",
+                    80: "Slight Rain Showers", 81: "Moderate Rain Showers", 82: "Violent Rain Showers",
+                    85: "Slight Snow Showers", 86: "Heavy Snow Showers",
+                    95: "Thunderstorm", 96: "Thunderstorm with Slight Hail", 99: "Thunderstorm with Heavy Hail"
+                }
+            }
+        };
+
+        let currentLang = 'fr';
+        let weatherData = null;
+
+        // ==================== WEATHER ICONS (Emojis) ====================
+        function getWeatherIcon(code, isDay = 1) {
+            const icons = {
+                0: isDay ? "☀️" : "🌙",
+                1: isDay ? "🌤️" : "🌑",
+                2: isDay ? "⛅" : "☁️",
+                3: "☁️",
+                45: "🌫️", 48: "🌫️",
+                51: "🌦️", 53: "🌦️", 55: "🌧️",
+                56: "🌨️", 57: "🌨️",
+                61: "🌦️", 63: "🌧️", 65: "🌧️",
+                66: "🌨️", 67: "🌨️",
+                71: "🌨️", 73: "❄️", 75: "❄️", 77: "❄️",
+                80: "🌦️", 81: "🌧️", 82: "⛈️",
+                85: "🌨️", 86: "❄️",
+                95: "⛈️", 96: "⛈️", 99: "⛈️"
+            };
+            return icons[code] || "🌡️";
+        }
+
+        // ==================== LANGUAGE SWITCHING ====================
+        function setLang(lang) {
+            currentLang = lang;
+            document.getElementById('btnFr').classList.toggle('active', lang === 'fr');
+            document.getElementById('btnEn').classList.toggle('active', lang === 'en');
+            document.documentElement.lang = lang;
+            
+            // Update all translatable elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    if (key === 'footer') {
+                        el.innerHTML = translations[lang][key];
+                    } else {
+                        el.textContent = translations[lang][key];
+                    }
+                }
+            });
+
+            // Re-render if data exists
+            if (weatherData) {
+                renderWeather();
+            }
+        }
+
+        // ==================== FETCH WEATHER DATA ====================
+        async function fetchWeather() {
+            const container = document.getElementById('mainContent');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p data-i18n="loading">${translations[currentLang].loading}</p>
+                </div>
+            `;
+
+            try {
+                // Douala coordinates: 4.0483° N, 9.7043° E
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=4.0483&longitude=9.7043&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max&timezone=Africa%2FLagos&forecast_days=8`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('API Error');
+                
+                weatherData = await response.json();
+                renderWeather();
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="error-container">
+                        <div class="error-icon">⚠️</div>
+                        <p class="error-text" data-i18n="error">${translations[currentLang].error}</p>
+                        <button class="retry-btn" onclick="fetchWeather()" data-i18n="retry">${translations[currentLang].retry}</button>
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== RENDER WEATHER ====================
+        function renderWeather() {
+            if (!weatherData) return;
+            
+            const t = translations[currentLang];
+            const current = weatherData.current;
+            const daily = weatherData.daily;
+            const hourly = weatherData.hourly;
+            
+            const isDay = current.is_day === 1;
+            const isRainy = current.precipitation > 0 || [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(current.weather_code);
+            
+            // Update body background
+            document.body.className = '';
+            if (!isDay) document.body.classList.add('night');
+            if (isRainy) document.body.classList.add('rainy');
+            
+            // Create rain effect
+            createRainEffect(isRainy);
+
+            // Current date/time
+            const now = new Date();
+            const dateStr = now.toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : 'en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            const timeStr = now.toLocaleTimeString(currentLang === 'fr' ? 'fr-FR' : 'en-US', {
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            // Wind direction
+            const windDir = getWindDirection(current.wind_direction_10m);
+
+            // Build HTML
+            const html = `
+                <section class="current-weather fade-in">
+                    <h1 class="city-name">Douala, Cameroon</h1>
+                    <p class="date-time">${dateStr} | ${timeStr}</p>
+                    <div class="weather-icon-main">${getWeatherIcon(current.weather_code, isDay)}</div>
+                    <div class="temperature">${Math.round(current.temperature_2m)}<sup>°C</sup></div>
+                    <p class="weather-desc">${t.weatherCodes[current.weather_code] || "Unknown"}</p>
+                    <p class="feels-like">${t.feelsLike}: ${Math.round(current.apparent_temperature)}°C</p>
+                </section>
+
+                <section class="details-grid fade-in delay-1">
+                    <div class="detail-card">
+                        <div class="detail-icon">💧</div>
+                        <div class="detail-label">${t.humidity}</div>
+                        <div class="detail-value">${current.relative_humidity_2m}%</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">💨</div>
+                        <div class="detail-label">${t.wind}</div>
+                        <div class="detail-value">${current.wind_speed_10m} km/h ${windDir}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">📊</div>
+                        <div class="detail-label">${t.pressure}</div>
+                        <div class="detail-value">${Math.round(current.pressure_msl)} hPa</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">🌧️</div>
+                        <div class="detail-label">${t.precipitation}</div>
+                        <div class="detail-value">${current.precipitation} mm</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">☁️</div>
+                        <div class="detail-label">${currentLang === 'fr' ? 'Couverture' : 'Cloud Cover'}</div>
+                        <div class="detail-value">${current.cloud_cover}%</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">🌡️</div>
+                        <div class="detail-label">${currentLang === 'fr' ? 'Temp. Surface' : 'Surface Temp'}</div>
+                        <div class="detail-value">${Math.round(current.temperature_2m)}°C</div>
+                    </div>
+                </section>
+
+                <section class="fade-in delay-2">
+                    <h2 class="section-title">⏰ ${t.hourlyForecast}</h2>
+                    <div class="hourly-container">
+                        <div class="hourly-scroll">
+                            ${generateHourlyForecast(hourly, t)}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="fade-in delay-3">
+                    <h2 class="section-title">📅 ${t.dailyForecast}</h2>
+                    <div class="daily-container">
+                        ${generateDailyForecast(daily, t)}
+                    </div>
+                </section>
+            `;
+
+            document.getElementById('mainContent').innerHTML = html;
+        }
+
+        function getWindDirection(deg) {
+            const dirs = currentLang === 'fr' 
+                ? ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO']
+                : ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            return dirs[Math.round(deg / 22.5) % 16];
+        }
+
+        function generateHourlyForecast(hourly, t) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            let html = '';
+            
+            // Find current hour index
+            const currentTimeStr = now.toISOString().slice(0, 13);
+            let startIndex = 0;
+            
+            for (let i = 0; i < hourly.time.length; i++) {
+                if (hourly.time[i].startsWith(currentTimeStr)) {
+                    startIndex = i;
+                    break;
+                }
+            }
+            
+            // Show next 24 hours
+            for (let i = startIndex; i < Math.min(startIndex + 24, hourly.time.length); i++) {
+                const time = new Date(hourly.time[i]);
+                const hour = time.getHours();
+                const isNow = i === startIndex;
+                const timeLabel = isNow 
+                    ? (currentLang === 'fr' ? 'Maintenant' : 'Now')
+                    : `${hour.toString().padStart(2, '0')}:00`;
+                
+                html += `
+                    <div class="hour-item">
+                        <span class="hour-time">${timeLabel}</span>
+                        <span class="hour-icon">${getWeatherIcon(hourly.weather_code[i], hourly.is_day[i])}</span>
+                        <span class="hour-temp">${Math.round(hourly.temperature_2m[i])}°</span>
+                        <span class="hour-rain">💧 ${hourly.precipitation_probability[i]}%</span>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+
+        function generateDailyForecast(daily, t) {
+            let html = '';
+            const now = new Date();
+            
+            for (let i = 0; i < daily.time.length; i++) {
+                const date = new Date(daily.time[i]);
+                const dayIndex = date.getDay();
+                const isToday = i === 0;
+                
+                const dayName = isToday 
+                    ? t.today 
+                    : t.fullDays[dayIndex];
+                
+                const shortDay = isToday 
+                    ? (currentLang === 'fr' ? 'Auj.' : 'Today')
+                    : t.days[dayIndex];
+                
+                html += `
+                    <div class="daily-item">
+                        <div class="daily-day">${dayName}</div>
+                        <div class="daily-center">
+                            <span class="daily-icon">${getWeatherIcon(daily.weather_code[i], 1)}</span>
+                            <span class="daily-desc">${t.weatherCodes[daily.weather_code[i]] || ""}</span>
+                        </div>
+                        <div class="daily-temps">
+                            <div class="daily-max">${Math.round(daily.temperature_2m_max[i])}°</div>
+                            <div class="daily-min">${Math.round(daily.temperature_2m_min[i])}°</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+
+        function createRainEffect(isRainy) {
+            const container = document.getElementById('rainContainer');
+            container.innerHTML = '';
+            
+            if (!isRainy) return;
+            
+            for (let i = 0; i < 100; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'raindrop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+                drop.style.animationDelay = Math.random() * 2 + 's';
+                drop.style.opacity = Math.random() * 0.5 + 0.3;
+                container.appendChild(drop);
+            }
+        }
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchWeather();
+            
+            // Auto-refresh every 10 minutes
+            setInterval(fetchWeather, 600000);
+        });
+    </script>
+</body>
+</html>
